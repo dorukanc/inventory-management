@@ -12,23 +12,35 @@ def generate_demand(distribution, mean, std_dev, lam, days):
 def simulate_inventory(demand, policy, reorder_point, order_quantity, lead_time):
     days = len(demand)
     on_hand = np.zeros(days)
-    in_shipment = np.zeros(days)  # Renamed 'in_transit' to 'in_shipment'
+    in_shipment = np.zeros(days)
     service_level = np.zeros(days)
     orders = []
+    order_in_transit = False
 
     for day in range(days):
+        # Update on-hand inventory by receiving items in shipment after the lead time
         if day >= lead_time:
-            on_hand[day] = on_hand[day - 1] + in_shipment[day - lead_time] - demand[day]
+            on_hand[day] = on_hand[day - 1] + in_shipment[day] - demand[day]
         else:
             on_hand[day] = (on_hand[day - 1] if day > 0 else 0) - demand[day]
 
-        if policy == 's_Q' and on_hand[day] < reorder_point:
-            orders.append((day, order_quantity))
-            in_shipment[day + lead_time if day + lead_time < days else -1] += order_quantity  # Updated reference
-        elif policy == 'R_s_S' and day % 10 == 0:
-            if on_hand[day] < reorder_point:
+        # Check for reorder
+        if not order_in_transit:
+            if policy == 's_Q' and on_hand[day] < reorder_point:
                 orders.append((day, order_quantity))
-                in_shipment[day + lead_time if day + lead_time < days else -1] += order_quantity  # Updated reference
+                if day + lead_time < days:
+                    in_shipment[day + lead_time] += order_quantity
+                order_in_transit = True
+            elif policy == 'R_s_S' and day % 10 == 0:
+                if on_hand[day] < reorder_point:
+                    orders.append((day, order_quantity))
+                    if day + lead_time < days:
+                        in_shipment[day + lead_time] += order_quantity
+                    order_in_transit = True
+
+        # Reset order_in_transit if order has arrived
+        if order_in_transit and day >= lead_time and in_shipment[day] > 0:
+            order_in_transit = False
 
         service_level[day] = 1 if on_hand[day] >= 0 else 0
 
@@ -37,7 +49,7 @@ def simulate_inventory(demand, policy, reorder_point, order_quantity, lead_time)
         'Day': np.arange(days),
         'Demand': demand,
         'On Hand': on_hand,
-        'In Shipment': in_shipment,  # Updated column name
+        'In Shipment': in_shipment,
         'Service Level': service_level
     }), service_level_performance
 
@@ -62,7 +74,6 @@ def run_simulation():
         inventory_results.to_csv('inventory_simulation_results.csv', index=False)
         plt.figure(figsize=(10, 5))
         plt.plot(inventory_results['Day'], inventory_results['On Hand'], label='On Hand Inventory', color='pink')
-        plt.plot(inventory_results['Day'], inventory_results['In Shipment'], label='In Shipment Inventory', color='blue')
         plt.title('Inventory Levels Over Time')
         plt.xlabel('Day')
         plt.ylabel('Inventory Level')
