@@ -7,7 +7,7 @@ def generate_demand(distribution, mean, std_dev, lam, days):
     if distribution == 'normal':
         return np.random.normal(loc=mean, scale=std_dev, size=days)
     elif distribution == 'poisson':
-        return np.random.poisson(lam=lam, size=days)
+        return np.random.poisson(lam, size=days)
 
 def simulate_inventory(demand, policy, reorder_point, order_quantity, lead_time):
     days = len(demand)
@@ -73,7 +73,7 @@ def run_simulation():
 
         inventory_results.to_csv('inventory_simulation_results.csv', index=False)
         plt.figure(figsize=(10, 5))
-        plt.plot(inventory_results['Day'], inventory_results['On Hand'], label='On Hand Inventory', color='pink')
+        plt.plot(inventory_results['Day'], inventory_results['On Hand'], label='On Hand Inventory', color='red')
         plt.title('Inventory Levels Over Time')
         plt.xlabel('Day')
         plt.ylabel('Inventory Level')
